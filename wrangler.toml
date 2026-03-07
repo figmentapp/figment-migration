@@ -8,7 +8,7 @@ crons = ["0 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "figment-migration-db"
-database_id = "placeholder-will-be-set-after-creation"
+database_id = "70c3dbab-6bb5-4117-ba14-2f3a218fb5b5"
 
 [[r2_buckets]]
 binding = "STORAGE"
