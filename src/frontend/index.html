@@ -552,7 +552,7 @@
       document.getElementById('file-alert').innerHTML = '';
 
       if (status === 'partial' && errors && errors.length > 0) {
-        const msg = `${errors.length} node(s) could not be converted and were left unchanged.\n${errors.slice(0, 3).join('\n')}`;
+        const msg = `${errors.length} node(s) could not be converted and were left unchanged.\n${errors.slice(0, 3).map(e => e.error || JSON.stringify(e)).join('\n')}`;
         showFileAlert('warning', msg);
       }
 
@@ -782,7 +782,7 @@
           } else if (data.status === 'failed') {
             clearInterval(handle);
             const errMsg = data.errors && data.errors.length > 0
-              ? data.errors.join('\n')
+              ? data.errors.map(e => e.error || JSON.stringify(e)).join('; ')
               : 'Conversion failed.';
             callbacks.onError(errMsg);
           }

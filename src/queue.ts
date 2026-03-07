@@ -14,16 +14,18 @@ export async function handleQueue(
       message.ack();
     } catch (err) {
       console.error(`Task ${taskId} failed:`, err);
-
-      await env.DB.prepare(
-        `UPDATE tasks SET status = 'failed', errors = ?, updated_at = datetime('now') WHERE id = ?`,
-      )
-        .bind(
-          JSON.stringify([{ error: err instanceof Error ? err.message : String(err) }]),
-          taskId,
+      try {
+        await env.DB.prepare(
+          `UPDATE tasks SET status = 'failed', errors = ?, updated_at = datetime('now') WHERE id = ?`,
         )
-        .run();
-
+          .bind(
+            JSON.stringify([{ error: err instanceof Error ? err.message : String(err) }]),
+            taskId,
+          )
+          .run();
+      } catch (dbErr) {
+        console.error(`Failed to update task ${taskId} status in DB:`, dbErr);
+      }
       message.ack();
     }
   }
@@ -42,7 +44,9 @@ async function processTask(taskId: string, env: Env): Promise<void> {
 
   if (!task) throw new Error("Task not found");
 
-  const inputObj = await env.STORAGE.get(task.input_key as string);
+  const inputKey = task.input_key as string;
+  if (!inputKey) throw new Error(`Task ${taskId} has no input_key`);
+  const inputObj = await env.STORAGE.get(inputKey);
   if (!inputObj) throw new Error("Input file not found in R2");
 
   const inputData = await inputObj.text();
@@ -115,7 +119,9 @@ async function processFgmtFile(taskId: string, inputData: string, env: Env): Pro
       .run();
   }
 
-  fgmt.version = 6;
+  if (nodesCompleted > 0) {
+    fgmt.version = 6;
+  }
 
   const outputKey = `outputs/${taskId}.json`;
   await env.STORAGE.put(outputKey, JSON.stringify(fgmt, null, 2));

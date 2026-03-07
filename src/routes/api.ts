@@ -142,7 +142,10 @@ api.get("/migrate-to-webgpu/result", async (c) => {
     return c.json({ error: "Task not completed", status: task.status }, 202);
   }
 
-  const outputKey = task.output_key as string;
+  const outputKey = task.output_key as string | null;
+  if (!outputKey) {
+    return c.json({ error: "Output file not available" }, 500);
+  }
   const obj = await c.env.STORAGE.get(outputKey);
   if (!obj) {
     return c.json({ error: "Output file not found" }, 500);
