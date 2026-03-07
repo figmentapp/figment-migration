@@ -1,0 +1,109 @@
+{
+  "version": 5,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Load Movie",
+      "type": "image.loadMovie",
+      "x": 100,
+      "y": 50,
+      "values": {
+        "file": {
+          "type": "value",
+          "value": "/Applications/Figment.app/Contents/Resources/app.asar/examples/assets/waves.mp4"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 100,
+      "y": 150
+    },
+    {
+      "id": 3,
+      "name": "Sobel",
+      "type": "image.sobel",
+      "x": 250,
+      "y": 250
+    },
+    {
+      "id": 5,
+      "name": "Stack",
+      "type": "image.stack",
+      "x": 100,
+      "y": 450
+    },
+    {
+      "id": 6,
+      "name": "Out",
+      "type": "core.out",
+      "x": 100,
+      "y": 550
+    },
+    {
+      "id": 4,
+      "name": "Custom Threshold",
+      "type": "project.customThreshold",
+      "x": 250,
+      "y": 350,
+      "values": {
+        "threshold": {
+          "type": "value",
+          "value": 0.3
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out",
+      "inNode": 4,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 5,
+      "inPort": "image 1"
+    },
+    {
+      "outNode": 4,
+      "outPort": "out",
+      "inNode": 5,
+      "inPort": "image 2"
+    },
+    {
+      "outNode": 5,
+      "outPort": "out",
+      "inNode": 6,
+      "inPort": "in"
+    }
+  ],
+  "settings": {
+    "oscEnabled": false,
+    "oscPort": 8000
+  },
+  "types": [
+    {
+      "name": "Custom Threshold",
+      "type": "project.customThreshold",
+      "source": "/**\n * @name Threshold\n * @description Change brightness threshold of input image.\n * @category image\n */\n\nconst fragmentShader = `\nprecision mediump float;\nuniform sampler2D u_input_texture;\nuniform float u_threshold;\nvarying vec2 v_uv;\n\nvoid main() {\n  vec2 uv = v_uv;\n  vec3 col = texture2D(u_input_texture, uv.st).rgb;\n  float brightness = 0.33333 * (col.r + col.g + col.b);\n  float b = mix(0.0, 1.0, step(u_threshold, brightness));\n  gl_FragColor = vec4(b, b, b, 1.0);\n}\n`;\n\nconst imageIn = node.imageIn('in');\nconst thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.01 });\nconst imageOut = node.imageOut('out');\n\nlet program, framebuffer;\n\nnode.onStart = (props) => {\n  program = figment.createShaderProgram(fragmentShader);\n  framebuffer = new figment.Framebuffer();\n};\n\nnode.onRender = () => {\n  if (!imageIn.value) return;\n  framebuffer.setSize(imageIn.value.width, imageIn.value.height);\n  framebuffer.bind();\n  figment.clear();\n  figment.drawQuad(program, {\n    u_input_texture: imageIn.value.texture,\n    u_threshold: thresholdIn.value,\n  });\n  framebuffer.unbind();\n  imageOut.set(framebuffer);\n};\n",
+      "description": ""
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Node stuff
+node_modules/
+
+# Secrets
+.env
+
+# Mac cruft
+.DS_Store
+
