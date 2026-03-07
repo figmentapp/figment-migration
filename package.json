@@ -1,0 +1,24 @@
+{
+  "name": "figment-migration",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 execute figment-migration-db --local --file=schema.sql",
+    "db:migrate:remote": "wrangler d1 execute figment-migration-db --remote --file=schema.sql"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250224.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

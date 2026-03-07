@@ -1,0 +1,24 @@
+name = "figment-migration"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "figment-migration-db"
+database_id = "placeholder-will-be-set-after-creation"
+
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "figment-migration-storage"
+
+[[queues.producers]]
+binding = "MIGRATION_QUEUE"
+queue = "figment-migration-queue"
+
+[[queues.consumers]]
+queue = "figment-migration-queue"
+max_batch_size = 1
+max_retries = 2
