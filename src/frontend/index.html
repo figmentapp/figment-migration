@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Figment Migration</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: oklch(15% 0 0);
+      --bg-raised: oklch(20% 0 0);
+      --bg-panel: oklch(18% 0 0);
+      --fg: oklch(90% 0 0);
+      --fg-dim: oklch(60% 0 0);
+      --border: oklch(35% 0 0);
+      --border-dim: oklch(28% 0 0);
+      --accent: oklch(70% 0.15 250);
+      --accent-dim: oklch(50% 0.15 250);
+      --accent-bg: oklch(25% 0.05 250);
+      --error: oklch(65% 0.2 25);
+      --error-bg: oklch(22% 0.05 25);
+      --success: oklch(65% 0.15 145);
+      --success-bg: oklch(22% 0.05 145);
+      --warning: oklch(70% 0.15 80);
+      --warning-bg: oklch(22% 0.05 80);
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", "Inconsolata", monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 64px;
+      min-height: 100%;
+    }
+
+    .page-header {
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 40px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--fg);
+      margin-bottom: 10px;
+    }
+
+    .page-subtitle {
+      color: var(--fg-dim);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .page-subtitle span {
+      display: block;
+    }
+
+    .panel {
+      width: 100%;
+      max-width: 680px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px 20px;
+      background: none;
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--fg-dim);
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      transition: color 0.1s, background 0.1s;
+    }
+
+    .tab-btn:last-child {
+      border-right: none;
+    }
+
+    .tab-btn:hover {
+      color: var(--fg);
+      background: var(--bg-raised);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      background: var(--accent-bg);
+      border-bottom: 2px solid var(--accent);
+      margin-bottom: -1px;
+    }
+
+    /* Tab panels */
+    .tab-panel {
+      display: none;
+      padding: 28px;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      padding: 48px 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .drop-zone-icon {
+      font-size: 32px;
+      margin-bottom: 14px;
+      opacity: 0.5;
+    }
+
+    .drop-zone-label {
+      color: var(--fg-dim);
+      font-size: 13px;
+    }
+
+    .drop-zone-label strong {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .drop-zone-hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--fg-dim);
+      opacity: 0.7;
+    }
+
+    /* Source textarea */
+    .source-label {
+      display: block;
+      font-size: 12px;
+      color: var(--fg-dim);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .source-textarea {
+      width: 100%;
+      min-height: 260px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.7;
+      padding: 14px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .source-textarea:focus {
+      border-color: var(--accent-dim);
+    }
+
+    .source-textarea::placeholder {
+      color: var(--fg-dim);
+      opacity: 0.5;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      background: var(--accent-dim);
+      color: var(--fg);
+      border: 1px solid var(--accent);
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.1s, opacity 0.1s;
+    }
+
+    .btn:hover {
+      background: var(--accent);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-ghost {
+      background: none;
+      border-color: var(--border);
+      color: var(--fg-dim);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-raised);
+      color: var(--fg);
+    }
+
+    .btn-success {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .btn-success:hover {
+      background: var(--success);
+      color: var(--bg);
+    }
+
+    /* Progress */
+    .progress-area {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .progress-area.visible {
+      display: block;
+    }
+
+    .progress-track {
+      height: 3px;
+      background: var(--border-dim);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    .progress-fill.indeterminate {
+      width: 40%;
+      animation: indeterminate 1.4s ease-in-out infinite;
+    }
+
+    @keyframes indeterminate {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    .progress-status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--fg-dim);
+    }
+
+    /* Result area (file tab) */
+    .result-area {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .result-area.visible {
+      display: block;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Alert banners */
+    .alert {
+      padding: 12px 14px;
+      border-left: 3px solid;
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .alert-error {
+      background: var(--error-bg);
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    .alert-warning {
+      background: var(--warning-bg);
+      border-color: var(--warning);
+      color: var(--warning);
+    }
+
+    .alert-success {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    /* Source code result */
+    .code-result-area {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .code-result-area.visible {
+      display: block;
+    }
+
+    .code-result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+
+    .code-result-label {
+      font-size: 11px;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 16px;
+      overflow-x: auto;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    .code-block code {
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--fg);
+      white-space: pre;
+      display: block;
+    }
+
+    /* Source convert actions */
+    .source-actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border-dim);
+      margin: 24px 0;
+    }
+
+    /* Copied flash */
+    .copy-flash {
+      font-size: 11px;
+      color: var(--success);
+      opacity: 0;
+      transition: opacity 0.3s;
+      align-self: center;
+    }
+
+    .copy-flash.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <h1 class="page-title">Convert your old Figment project here.</h1>
+    <p class="page-subtitle">
+      <span>Newer versions of Figment use WebGPU for performance.</span>
+      <span>Your project has custom nodes that are still written in WebGL.</span>
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="file">Project File</button>
+      <button class="tab-btn" data-tab="source">Source Code</button>
+    </div>
+
+    <!-- Project File tab -->
+    <div class="tab-panel active" id="tab-file">
+      <div
+        class="drop-zone"
+        id="drop-zone"
+        role="button"
+        tabindex="0"
+        aria-label="Drop .fgmt file or click to browse"
+      >
+        <div class="drop-zone-icon">&#x2B1C;</div>
+        <div class="drop-zone-label">
+          Drop your <strong>.fgmt file</strong> here, or <strong>click to browse</strong>
+        </div>
+        <div class="drop-zone-hint">Only .fgmt files are accepted</div>
+      </div>
+      <input type="file" id="file-input" accept=".fgmt" hidden />
+
+      <div class="progress-area" id="file-progress-area">
+        <div class="progress-track">
+          <div class="progress-fill" id="file-progress-fill"></div>
+        </div>
+        <div class="progress-status" id="file-progress-status">Queuing...</div>
+      </div>
+
+      <div class="result-area" id="file-result-area">
+        <div id="file-alert"></div>
+        <div class="result-actions" id="file-result-actions"></div>
+      </div>
+    </div>
+
+    <!-- Source Code tab -->
+    <div class="tab-panel" id="tab-source">
+      <label class="source-label" for="source-textarea">Paste WebGL node source code</label>
+      <textarea
+        class="source-textarea"
+        id="source-textarea"
+        placeholder="// Paste your WebGL node source code here&#10;// e.g. figment.createShaderProgram(...)"
+        spellcheck="false"
+      ></textarea>
+
+      <div class="source-actions">
+        <button class="btn" id="source-convert-btn">Convert</button>
+      </div>
+
+      <div class="progress-area" id="source-progress-area">
+        <div class="progress-track">
+          <div class="progress-fill" id="source-progress-fill"></div>
+        </div>
+        <div class="progress-status" id="source-progress-status">Queuing...</div>
+      </div>
+
+      <div class="code-result-area" id="source-result-area">
+        <div id="source-alert"></div>
+        <div class="code-result-header">
+          <span class="code-result-label">Converted output</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="copy-flash" id="copy-flash">Copied!</span>
+            <button class="btn btn-ghost" id="copy-btn" style="padding:5px 12px;font-size:12px;">Copy</button>
+          </div>
+        </div>
+        <div class="code-block">
+          <code id="source-code-output"></code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Tab switching ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+      });
+    });
+
+    // --- Drop zone ---
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) uploadFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+      fileInput.value = '';
+    });
+
+    // --- File upload ---
+    function setFileProgress(visible, pct, status) {
+      const area = document.getElementById('file-progress-area');
+      const fill = document.getElementById('file-progress-fill');
+      const statusEl = document.getElementById('file-progress-status');
+
+      if (visible) {
+        area.classList.add('visible');
+      } else {
+        area.classList.remove('visible');
+      }
+
+      if (pct === null) {
+        fill.classList.add('indeterminate');
+        fill.style.width = '';
+      } else {
+        fill.classList.remove('indeterminate');
+        fill.style.width = pct + '%';
+      }
+
+      if (status !== undefined) statusEl.textContent = status;
+    }
+
+    function showFileAlert(type, message) {
+      const el = document.getElementById('file-alert');
+      el.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+    }
+
+    function showFileResult(taskId, status, errors) {
+      const area = document.getElementById('file-result-area');
+      const actions = document.getElementById('file-result-actions');
+      area.classList.add('visible');
+
+      document.getElementById('file-alert').innerHTML = '';
+
+      if (status === 'partial' && errors && errors.length > 0) {
+        const msg = `${errors.length} node(s) could not be converted and were left unchanged.\n${errors.slice(0, 3).join('\n')}`;
+        showFileAlert('warning', msg);
+      }
+
+      const downloadBtn = document.createElement('a');
+      downloadBtn.href = `/api/migrate-to-webgpu/result?id=${encodeURIComponent(taskId)}`;
+      downloadBtn.download = '';
+      downloadBtn.className = 'btn btn-success';
+      downloadBtn.textContent = status === 'partial' ? 'Download (partial)' : 'Download converted file';
+      actions.appendChild(downloadBtn);
+    }
+
+    async function uploadFile(file) {
+      if (!file.name.endsWith('.fgmt')) {
+        alert('Please select a .fgmt file.');
+        return;
+      }
+
+      // Reset state
+      document.getElementById('file-result-area').classList.remove('visible');
+      document.getElementById('file-result-actions').innerHTML = '';
+      document.getElementById('file-alert').innerHTML = '';
+      setFileProgress(true, null, 'Uploading...');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      let taskId;
+      try {
+        const res = await fetch('/api/migrate-to-webgpu', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setFileProgress(false);
+          showFileAlert('error', data.error || 'Upload failed.');
+          document.getElementById('file-result-area').classList.add('visible');
+          return;
+        }
+
+        // Already done (no WebGL nodes)
+        if (data.status === 'completed' && !data.id) {
+          setFileProgress(false);
+          document.getElementById('file-result-area').classList.add('visible');
+          showFileAlert('success', data.message || 'File is already compatible.');
+          return;
+        }
+
+        taskId = data.id;
+        setFileProgress(true, 5, 'Queued...');
+      } catch (err) {
+        setFileProgress(false);
+        document.getElementById('file-result-area').classList.add('visible');
+        showFileAlert('error', 'Network error: ' + err.message);
+        return;
+      }
+
+      // Poll for status
+      pollStatus(taskId, {
+        onProgress(nodesCompleted, nodeCount) {
+          const pct = nodeCount > 0 ? Math.round((nodesCompleted / nodeCount) * 90) + 5 : null;
+          setFileProgress(true, pct, `Converting... ${nodesCompleted}/${nodeCount} nodes`);
+        },
+        onComplete(status, errors) {
+          setFileProgress(true, 100, status === 'partial' ? 'Partially converted.' : 'Conversion complete.');
+          setTimeout(() => {
+            setFileProgress(false);
+            showFileResult(taskId, status, errors);
+          }, 400);
+        },
+        onError(message) {
+          setFileProgress(false);
+          document.getElementById('file-result-area').classList.add('visible');
+          showFileAlert('error', message);
+        },
+      });
+    }
+
+    // --- Source code conversion ---
+    const sourceConvertBtn = document.getElementById('source-convert-btn');
+    sourceConvertBtn.addEventListener('click', convertSource);
+
+    function setSourceProgress(visible, pct, status) {
+      const area = document.getElementById('source-progress-area');
+      const fill = document.getElementById('source-progress-fill');
+      const statusEl = document.getElementById('source-progress-status');
+
+      if (visible) {
+        area.classList.add('visible');
+      } else {
+        area.classList.remove('visible');
+      }
+
+      if (pct === null) {
+        fill.classList.add('indeterminate');
+        fill.style.width = '';
+      } else {
+        fill.classList.remove('indeterminate');
+        fill.style.width = pct + '%';
+      }
+
+      if (status !== undefined) statusEl.textContent = status;
+    }
+
+    function showSourceAlert(type, message) {
+      const el = document.getElementById('source-alert');
+      el.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+    }
+
+    async function convertSource() {
+      const source = document.getElementById('source-textarea').value.trim();
+      if (!source) {
+        alert('Please paste some source code first.');
+        return;
+      }
+
+      // Reset
+      document.getElementById('source-result-area').classList.remove('visible');
+      document.getElementById('source-alert').innerHTML = '';
+      document.getElementById('source-code-output').textContent = '';
+      setSourceProgress(true, null, 'Queuing...');
+      sourceConvertBtn.disabled = true;
+
+      let taskId;
+      try {
+        const res = await fetch('/api/migrate-to-webgpu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setSourceProgress(false);
+          sourceConvertBtn.disabled = false;
+          document.getElementById('source-result-area').classList.add('visible');
+          showSourceAlert('error', data.error || 'Request failed.');
+          return;
+        }
+
+        if (data.status === 'completed' && !data.id) {
+          setSourceProgress(false);
+          sourceConvertBtn.disabled = false;
+          document.getElementById('source-result-area').classList.add('visible');
+          showSourceAlert('success', data.message || 'Already compatible.');
+          return;
+        }
+
+        taskId = data.id;
+        setSourceProgress(true, 10, 'Converting...');
+      } catch (err) {
+        setSourceProgress(false);
+        sourceConvertBtn.disabled = false;
+        document.getElementById('source-result-area').classList.add('visible');
+        showSourceAlert('error', 'Network error: ' + err.message);
+        return;
+      }
+
+      pollStatus(taskId, {
+        onProgress(nodesCompleted, nodeCount) {
+          const pct = nodeCount > 0 ? Math.round((nodesCompleted / nodeCount) * 80) + 10 : null;
+          setSourceProgress(true, pct, 'Converting...');
+        },
+        async onComplete(status, errors) {
+          setSourceProgress(true, 100, 'Done.');
+          sourceConvertBtn.disabled = false;
+
+          // Fetch the result text
+          try {
+            const res = await fetch(`/api/migrate-to-webgpu/result?id=${encodeURIComponent(taskId)}`);
+            const text = await res.text();
+            setTimeout(() => {
+              setSourceProgress(false);
+              const resultArea = document.getElementById('source-result-area');
+              resultArea.classList.add('visible');
+              document.getElementById('source-code-output').textContent = text;
+              if (status === 'partial' && errors && errors.length > 0) {
+                showSourceAlert('warning', 'Conversion was partial. Some nodes may not have converted correctly.');
+              }
+            }, 300);
+          } catch (err) {
+            setSourceProgress(false);
+            document.getElementById('source-result-area').classList.add('visible');
+            showSourceAlert('error', 'Failed to fetch result: ' + err.message);
+          }
+        },
+        onError(message) {
+          setSourceProgress(false);
+          sourceConvertBtn.disabled = false;
+          document.getElementById('source-result-area').classList.add('visible');
+          showSourceAlert('error', message);
+        },
+      });
+    }
+
+    // --- Copy button ---
+    document.getElementById('copy-btn').addEventListener('click', async () => {
+      const code = document.getElementById('source-code-output').textContent;
+      try {
+        await navigator.clipboard.writeText(code);
+        const flash = document.getElementById('copy-flash');
+        flash.classList.add('visible');
+        setTimeout(() => flash.classList.remove('visible'), 1800);
+      } catch {
+        alert('Could not copy to clipboard.');
+      }
+    });
+
+    // --- Polling ---
+    function pollStatus(taskId, callbacks) {
+      const interval = 1500;
+      let handle;
+
+      async function check() {
+        try {
+          const res = await fetch(`/api/migrate-to-webgpu/status?id=${encodeURIComponent(taskId)}`);
+          if (!res.ok) {
+            clearInterval(handle);
+            callbacks.onError('Failed to fetch status (HTTP ' + res.status + ').');
+            return;
+          }
+          const data = await res.json();
+
+          if (data.status === 'processing' || data.status === 'queued') {
+            callbacks.onProgress(data.nodesCompleted || 0, data.nodeCount || 1);
+          } else if (data.status === 'completed' || data.status === 'partial') {
+            clearInterval(handle);
+            callbacks.onComplete(data.status, data.errors || []);
+          } else if (data.status === 'failed') {
+            clearInterval(handle);
+            const errMsg = data.errors && data.errors.length > 0
+              ? data.errors.join('\n')
+              : 'Conversion failed.';
+            callbacks.onError(errMsg);
+          }
+        } catch (err) {
+          clearInterval(handle);
+          callbacks.onError('Network error while polling: ' + err.message);
+        }
+      }
+
+      handle = setInterval(check, interval);
+      // Run immediately too
+      check();
+    }
+
+    // --- Utilities ---
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, '<br>');
+    }
+  </script>
+</body>
+</html>
