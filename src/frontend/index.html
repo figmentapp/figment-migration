@@ -481,6 +481,19 @@
   </div>
 
   <script>
+    // --- Asymptotic progress animation ---
+    function startProgressAnim(fillEl) {
+      const startTime = Date.now();
+      const tau = 15000; // ms — controls how fast the bar moves
+      fillEl.classList.remove('indeterminate');
+      const handle = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = 90 * (1 - Math.exp(-elapsed / tau));
+        fillEl.style.width = pct.toFixed(1) + '%';
+      }, 100);
+      return () => clearInterval(handle);
+    }
+
     // --- Tab switching ---
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -531,7 +544,7 @@
       if (pct === null) {
         fill.classList.add('indeterminate');
         fill.style.width = '';
-      } else {
+      } else if (pct !== undefined) {
         fill.classList.remove('indeterminate');
         fill.style.width = pct + '%';
       }
@@ -600,7 +613,7 @@
         }
 
         taskId = data.id;
-        setFileProgress(true, 5, 'Queued...');
+        setFileProgress(true, undefined, 'Converting...');
       } catch (err) {
         setFileProgress(false);
         document.getElementById('file-result-area').classList.add('visible');
@@ -608,13 +621,15 @@
         return;
       }
 
+      const stopFileAnim = startProgressAnim(document.getElementById('file-progress-fill'));
+
       // Poll for status
       pollStatus(taskId, {
         onProgress(nodesCompleted, nodeCount) {
-          const pct = nodeCount > 0 ? Math.round((nodesCompleted / nodeCount) * 90) + 5 : null;
-          setFileProgress(true, pct, `Converting... ${nodesCompleted}/${nodeCount} nodes`);
+          setFileProgress(true, undefined, `Converting... ${nodesCompleted}/${nodeCount} nodes`);
         },
         onComplete(status, errors) {
+          stopFileAnim();
           setFileProgress(true, 100, status === 'partial' ? 'Partially converted.' : 'Conversion complete.');
           setTimeout(() => {
             setFileProgress(false);
@@ -622,6 +637,7 @@
           }, 400);
         },
         onError(message) {
+          stopFileAnim();
           setFileProgress(false);
           document.getElementById('file-result-area').classList.add('visible');
           showFileAlert('error', message);
@@ -647,7 +663,7 @@
       if (pct === null) {
         fill.classList.add('indeterminate');
         fill.style.width = '';
-      } else {
+      } else if (pct !== undefined) {
         fill.classList.remove('indeterminate');
         fill.style.width = pct + '%';
       }
@@ -700,7 +716,7 @@
         }
 
         taskId = data.id;
-        setSourceProgress(true, 10, 'Converting...');
+        setSourceProgress(true, undefined, 'Converting...');
       } catch (err) {
         setSourceProgress(false);
         sourceConvertBtn.disabled = false;
@@ -709,12 +725,14 @@
         return;
       }
 
+      const stopSourceAnim = startProgressAnim(document.getElementById('source-progress-fill'));
+
       pollStatus(taskId, {
         onProgress(nodesCompleted, nodeCount) {
-          const pct = nodeCount > 0 ? Math.round((nodesCompleted / nodeCount) * 80) + 10 : null;
-          setSourceProgress(true, pct, 'Converting...');
+          setSourceProgress(true, undefined, 'Converting...');
         },
         async onComplete(status, errors) {
+          stopSourceAnim();
           setSourceProgress(true, 100, 'Done.');
           sourceConvertBtn.disabled = false;
 
@@ -738,6 +756,7 @@
           }
         },
         onError(message) {
+          stopSourceAnim();
           setSourceProgress(false);
           sourceConvertBtn.disabled = false;
           document.getElementById('source-result-area').classList.add('visible');
