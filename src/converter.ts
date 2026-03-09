@@ -624,10 +624,14 @@ export async function convertNode(
     try {
       const response = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 4096,
+        max_tokens: 16384,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       });
+
+      if (response.stop_reason === "max_tokens") {
+        return { success: false, error: "Output exceeded token limit — node may be too large to convert in one pass" };
+      }
 
       const textBlock = response.content.find((b) => b.type === "text");
       if (!textBlock || textBlock.type !== "text") {
