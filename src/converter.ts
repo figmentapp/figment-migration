@@ -622,12 +622,22 @@ export async function convertNode(
     }
 
     try {
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 16384,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
-      });
+      // Haiku 5.5 thinks by default (effort "medium"), and thinking counts
+      // toward max_tokens, so leave room above the converted source itself.
+      // Streaming avoids the SDK's timeout guard for large non-streaming requests.
+      const response = await client.messages
+        .stream({
+          model: "claude-haiku-5-5",
+          max_tokens: 32000,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: "user", content: userMessage }],
+        })
+        .finalMessage();
+
+      // SDK 0.39 types predate the "refusal" stop reason that Haiku 5.5's safety classifiers can return.
+      if ((response.stop_reason as string) === "refusal") {
+        return { success: false, error: "The AI model declined to convert this node" };
+      }
 
       if (response.stop_reason === "max_tokens") {
         return { success: false, error: "Output exceeded token limit — node may be too large to convert in one pass" };

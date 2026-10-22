@@ -50,7 +50,7 @@ Figment is a visual node-based creative coding environment. In March 2026, Figme
 - **Database**: Cloudflare D1 (task tracking, metadata)
 - **Storage**: Cloudflare R2 (input/output files)
 - **Queue**: Cloudflare Queues (async processing)
-- **AI**: Anthropic SDK with Claude Sonnet 4.6 (`claude-sonnet-4-6`)
+- **AI**: Anthropic SDK with Claude Haiku 5.5 (`claude-haiku-5-5`)
 - **Cleanup**: Cloudflare Cron Trigger (24-hour file retention)
 
 ---
