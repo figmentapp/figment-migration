@@ -9,6 +9,7 @@ Cloudflare Worker (Hono, D1, R2, Queues) that converts Figment `.fgmt` projects 
 ## Branch and deploy
 
 - Base branch `main`; commit and push to it directly.
+- Live at https://figment-migration.nodebox.workers.dev (Cloudflare account "Sint Lucas", `40728e030c0e1a608b66d84b0de7ac62`).
 - Cloudflare Workers Builds deploys every push to `main` from GitHub. Do not run `npm run deploy` by hand. Confirm a deploy with `npx wrangler deployments list`.
 - Schema changes in `schema.sql` are not applied by the build: run `npm run db:migrate:remote` before pushing code that needs them.
 
