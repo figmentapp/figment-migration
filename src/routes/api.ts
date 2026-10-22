@@ -1,103 +1,134 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type { Env, FgmtFile, QueueMessage } from "../types";
 import { hasWebGLMarkers } from "../classifier";
 
+// Each WebGL node costs one or more Claude calls, so these limits also cap spend per request.
+export const MAX_BODY_BYTES = 1024 * 1024;
+export const MAX_NODES = 50;
+
 const api = new Hono<{ Bindings: Env }>();
 
-function generateTaskId(): string {
-  return `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+// The task ID is the only thing that grants access to a result, so it must be unguessable.
+export function generateTaskId(): string {
+  return `task_${crypto.randomUUID()}`;
 }
 
-api.post("/migrate-to-webgpu", async (c) => {
-  const contentType = c.req.header("content-type") || "";
+api.post(
+  "/migrate-to-webgpu",
+  bodyLimit({
+    maxSize: MAX_BODY_BYTES,
+    onError: (c) =>
+      c.json(
+        { error: `Upload exceeds ${MAX_BODY_BYTES / 1024 / 1024} MB` },
+        413,
+      ),
+  }),
+  async (c) => {
+    const contentType = c.req.header("content-type") || "";
 
-  let inputType: "fgmt" | "source";
-  let inputData: string;
-  let nodeCount: number;
+    let inputType: "fgmt" | "source";
+    let inputData: string;
+    let nodeCount: number;
 
-  if (contentType.includes("multipart/form-data")) {
-    const formData = await c.req.formData();
-    const file = formData.get("file") as File | null;
-    const source = formData.get("source") as string | null;
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await c.req.formData();
+      const file = formData.get("file") as File | null;
+      const source = formData.get("source") as string | null;
 
-    if (file) {
-      inputType = "fgmt";
-      inputData = await file.text();
+      if (file) {
+        inputType = "fgmt";
+        inputData = await file.text();
 
-      let fgmt: FgmtFile;
-      try {
-        fgmt = JSON.parse(inputData);
-      } catch {
-        return c.json({ error: "Invalid JSON in .fgmt file" }, 400);
+        let fgmt: FgmtFile;
+        try {
+          fgmt = JSON.parse(inputData);
+        } catch {
+          return c.json({ error: "Invalid JSON in .fgmt file" }, 400);
+        }
+
+        if (!fgmt.types || !Array.isArray(fgmt.types)) {
+          return c.json({ error: "No types array found in .fgmt file" }, 400);
+        }
+
+        const webglTypes = fgmt.types.filter((t) => hasWebGLMarkers(t.source));
+        nodeCount = webglTypes.length;
+
+        if (nodeCount === 0) {
+          return c.json({
+            status: "completed",
+            message: "No custom WebGL nodes found. File is already compatible.",
+          });
+        }
+
+        if (nodeCount > MAX_NODES) {
+          return c.json(
+            {
+              error: `File has ${nodeCount} WebGL nodes; the limit is ${MAX_NODES}`,
+            },
+            400,
+          );
+        }
+      } else if (source) {
+        inputType = "source";
+        inputData = JSON.stringify({ source });
+        nodeCount = 1;
+
+        if (!hasWebGLMarkers(source)) {
+          return c.json({
+            status: "completed",
+            message:
+              "Source code does not contain WebGL markers. Already compatible.",
+          });
+        }
+      } else {
+        return c.json(
+          { error: "Provide either a 'file' or 'source' field" },
+          400,
+        );
       }
-
-      if (!fgmt.types || !Array.isArray(fgmt.types)) {
-        return c.json({ error: "No types array found in .fgmt file" }, 400);
+    } else if (contentType.includes("application/json")) {
+      const body = await c.req.json<{ source?: string }>();
+      if (!body.source) {
+        return c.json({ error: "Provide a 'source' field" }, 400);
       }
-
-      const webglTypes = fgmt.types.filter((t) => hasWebGLMarkers(t.source));
-      nodeCount = webglTypes.length;
-
-      if (nodeCount === 0) {
-        return c.json({
-          status: "completed",
-          message: "No custom WebGL nodes found. File is already compatible.",
-        });
-      }
-    } else if (source) {
       inputType = "source";
-      inputData = JSON.stringify({ source });
+      inputData = JSON.stringify({ source: body.source });
       nodeCount = 1;
 
-      if (!hasWebGLMarkers(source)) {
+      if (!hasWebGLMarkers(body.source)) {
         return c.json({
           status: "completed",
-          message: "Source code does not contain WebGL markers. Already compatible.",
+          message:
+            "Source code does not contain WebGL markers. Already compatible.",
         });
       }
     } else {
-      return c.json({ error: "Provide either a 'file' or 'source' field" }, 400);
+      return c.json({ error: "Unsupported content type" }, 400);
     }
-  } else if (contentType.includes("application/json")) {
-    const body = await c.req.json<{ source?: string }>();
-    if (!body.source) {
-      return c.json({ error: "Provide a 'source' field" }, 400);
-    }
-    inputType = "source";
-    inputData = JSON.stringify({ source: body.source });
-    nodeCount = 1;
 
-    if (!hasWebGLMarkers(body.source)) {
-      return c.json({
-        status: "completed",
-        message: "Source code does not contain WebGL markers. Already compatible.",
-      });
-    }
-  } else {
-    return c.json({ error: "Unsupported content type" }, 400);
-  }
+    const taskId = generateTaskId();
+    const inputKey = `inputs/${taskId}.json`;
 
-  const taskId = generateTaskId();
-  const inputKey = `inputs/${taskId}.json`;
+    await c.env.STORAGE.put(inputKey, inputData);
 
-  await c.env.STORAGE.put(inputKey, inputData);
-
-  await c.env.DB.prepare(
-    `INSERT INTO tasks (id, status, input_type, node_count, nodes_completed, input_key)
+    await c.env.DB.prepare(
+      `INSERT INTO tasks (id, status, input_type, node_count, nodes_completed, input_key)
      VALUES (?, 'queued', ?, ?, 0, ?)`,
-  )
-    .bind(taskId, inputType, nodeCount, inputKey)
-    .run();
+    )
+      .bind(taskId, inputType, nodeCount, inputKey)
+      .run();
 
-  await c.env.MIGRATION_QUEUE.send({ taskId } satisfies QueueMessage);
+    await c.env.MIGRATION_QUEUE.send({ taskId } satisfies QueueMessage);
 
-  return c.json({
-    id: taskId,
-    status: "queued",
-    nodeCount,
-    message: `Migration queued. Poll /api/migrate-to-webgpu/status?id=${taskId} for progress.`,
-  });
-});
+    return c.json({
+      id: taskId,
+      status: "queued",
+      nodeCount,
+      message: `Migration queued. Poll /api/migrate-to-webgpu/status?id=${taskId} for progress.`,
+    });
+  },
+);
 
 api.get("/migrate-to-webgpu/status", async (c) => {
   const taskId = c.req.query("id");
