@@ -10,7 +10,7 @@
       "values": {
         "file": {
           "type": "value",
-          "value": "/Users/fdb/Projects/figment/.worktrees/port-to-webgpu/examples/assets/waves.mp4"
+          "value": "waves.mp4"
         }
       }
     },
