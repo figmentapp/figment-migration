@@ -634,8 +634,7 @@ export async function convertNode(
         })
         .finalMessage();
 
-      // SDK 0.39 types predate the "refusal" stop reason that Haiku 5.5's safety classifiers can return.
-      if ((response.stop_reason as string) === "refusal") {
+      if (response.stop_reason === "refusal") {
         return { success: false, error: "The AI model declined to convert this node" };
       }
 

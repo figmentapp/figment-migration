@@ -12,13 +12,14 @@
     "db:migrate:remote": "wrangler d1 execute figment-migration-db --remote --file=schema.sql"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "hono": "^4.7.0"
+    "@anthropic-ai/sdk": "^1.1.0",
+    "hono": "^4.13.13"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250224.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
-    "wrangler": "^4.0.0"
+    "@cloudflare/workers-types": "^5.20261022.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.3"
   }
 }
